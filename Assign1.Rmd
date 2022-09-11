@@ -1,0 +1,83 @@
+---
+title: "Untitled"
+author: "Abi"
+date: "2022-09-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+#Data source : https://www.kaggle.com/datasets/mirichoi0218/insurance
+
+```
+
+```{r }
+library(readr)
+insurance <- read.csv("C:/Users/abinaya/Downloads/insurance.csv")
+```
+
+
+
+```{r}
+#2-Identifying quantitative & categorical variables and print out descriptive statistics:
+str(insurance)
+str(insurance$sex)
+categories <- as.factor(insurance$sex)
+
+##quantitative Variables: bmi,charges
+##categorical variables:Age,Smoker,Region
+##the mean of age is 39.2 and the median of bmi is 30.4
+
+min(insurance$children)
+max(insurance$children)
+mean(insurance$age)
+median(insurance$bmi)
+
+```
+
+```{r}
+#3-Transforming variable. 
+
+library(tidyverse)
+
+insurance_arrange1 <- insurance %>% arrange(age)
+View(insurance_arrange1)
+
+insurance_arrange2 <- insurance %>% arrange(age,sex,bmi )
+View(insurance_arrange2)
+
+insurance_arrange3 <- insurance %>% arrange(desc(age))
+View(insurance_arrange3)
+
+insurance_select1 <- insurance %>% select(age,sex,smoker)
+View(insurance_select1)
+
+insurance_filter1 <- insurance %>% filter(smoker == 'no')
+View(insurance_filter1)
+
+```
+
+```{r}
+#4-Plot at least one quantitative variable, and one scatterplot
+
+ggplot(insurance, aes (x= sex, y=age )) + geom_boxplot()
+
+ggplot(insurance, aes (x= sex, y= bmi)) + geom_col()
+
+ggplot(insurance_select1, aes (x= age, y= smoker)) + geom_col()
+
+ggplot(insurance_select1, aes (x= sex, y= smoker)) + geom_col()
+```
+
+
+
+
+
+
+
+
+
+
+
