@@ -1,0 +1,119 @@
+---
+title: "Assign_2"
+author: "Abi"
+date: "2022-10-02"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library('caret')
+
+library('ISLR')
+
+library('dplyr')
+
+library('class')
+
+```
+
+```{r}
+# Import dataset UniversalBank.csv 
+UniversalBank <- read.csv("C:/Users/abinaya/Downloads/UniversalBank.csv")
+#Displaying column names
+colnames(UniversalBank)  
+# Summary of UniversalBank dataset
+summary(UniversalBank)
+
+```
+
+```{r}
+# Making columns ID and ZIP.Code as NULL  
+UniversalBank$ID <- NULL
+UniversalBank$ZIP.Code <- NULL
+summary(UniversalBank)
+# Making the Personal Loan column as factor 
+UniversalBank$Personal.Loan =  as.factor(UniversalBank$Personal.Loan)
+```
+
+```{r}
+# Normalization
+Normal_Data <- preProcess(UniversalBank,method = "range")
+UniversalBank_Norm <- predict(Normal_Data,UniversalBank)
+summary(UniversalBank_Norm)
+```
+
+```{r}
+# Partition the data into training 60% and validation 40% sets
+Train_index <- createDataPartition(UniversalBank$Personal.Loan, p = 0.6, list = FALSE)
+train.df = UniversalBank_Norm[Train_index,]
+validation.df = UniversalBank_Norm[-Train_index,]
+```
+
+```{r}
+# Classifying the customer as per the date provided 
+To_Predict = data.frame(Age = 40, Experience = 10, Income = 84, Family = 2, CCAvg = 2, Education = 1, Mortgage = 0, Securities.Account = 0, CD.Account = 0, Online = 1, CreditCard = 1)
+print(To_Predict)
+Prediction <- knn(train = train.df[,1:7],test = To_Predict[,1:7], cl = train.df$Personal.Loan, k = 1)
+print(Prediction)
+# Customer is classified as 1.
+```
+```{r}
+# 2) Finding choice of k that balances between overfitting and ignoring the predictor
+set.seed(123)
+UniversalBank_control <- trainControl(method= "repeatedcv", number = 3, repeats = 2)
+searchGrid = expand.grid(k=1:10)
+knn.model = train(Personal.Loan~., data = train.df, method = 'knn', tuneGrid = searchGrid,trControl = UniversalBank_control)
+knn.model
+ 
+# The choice of K that balances between overfitting and ignoring predictor is K=3
+```
+
+```{r}
+ # 3) Confusion matrix
+predictions <- predict(knn.model,validation.df)
+confusionMatrix(predictions,validation.df$Personal.Loan)
+```
+
+```{r}
+# 4) Classify the customer using the best k
+To_Predict_Normaliz = data.frame(Age = 40, Experience = 10, Income = 84, Family = 2,
+CCAvg = 2, Education = 1, Mortgage = 0,Securities.Account =0, CD.Account = 0, Online = 1,CreditCard = 1)
+To_Predict_Normaliz = predict(Normal_Data, To_Predict)
+predict(knn.model, To_Predict_Normaliz)
+```
+
+```{r}
+# 5) Repartition the data into 50% for training ,30%  for validation, 20% for test
+train_size = 0.5
+Train_index = createDataPartition(UniversalBank$Personal.Loan, p = 0.5, list = FALSE)
+train.df = UniversalBank_Norm[Train_index,]
+test_size = 0.2
+Test_index = createDataPartition(UniversalBank$Personal.Loan, p = 0.2, list = FALSE)
+Test.df = UniversalBank_Norm[Test_index,]
+valid_size = 0.3
+Validation_index = createDataPartition(UniversalBank$Personal.Loan, p = 0.3, list = FALSE)
+validation.df = UniversalBank_Norm[Validation_index,]
+Testingknn <- knn(train = train.df[,-8], test = Test.df[,-8], cl = train.df[,8], k =3)
+Validationknn <- knn(train = train.df[,-8], test = validation.df[,-8], cl = train.df[,8], k =3)
+Trainingknn <- knn(train = train.df[,-8], test = train.df[,-8], cl = train.df[,8], k =3)
+# Comparing the confusion matrix of the test set with the training and validation sets.
+confusionMatrix(Testingknn, Test.df[,8])
+confusionMatrix(Trainingknn, train.df[,8])
+confusionMatrix(Validationknn, validation.df[,8])
+
+```
+
+
+
+
+
+
+
+
+
