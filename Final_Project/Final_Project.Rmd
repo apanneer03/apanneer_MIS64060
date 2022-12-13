@@ -1,0 +1,193 @@
+---
+title: "Fundamendals of Machine Learning-Final Project"
+author: "Abi"
+date: "2022-11-26"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Loading dataset 
+
+```{r}
+File.Data.csv<- read.csv("C:/Users/abinaya/OneDrive/Desktop/File.Data.csv.csv")
+str(File.Data.csv)
+```
+
+```{r}
+# Loading Package
+library(tidyverse)
+
+# Selecting Variables For Analysis 
+df_fuel <- File.Data.csv[,c(10,15:18,20)]
+
+# Checking missing values
+colMeans(is.na(df_fuel))
+```
+```{r}
+# Imputing NA values with mean value
+df_fuel$fuel_cost_per_mmbtu [is.na(df_fuel$fuel_cost_per_mmbtu)] <- mean(df_fuel$fuel_cost_per_mmbtu ,na.rm = TRUE)
+head(df_fuel)
+```
+
+```{r}
+library('caret')
+set.seed(8439)
+
+# Sampling the data 2%
+df <- df_fuel%>%sample_frac(0.02)
+
+# Partitining the data 
+Train_index <- createDataPartition(df$fuel_received_unit, p = 0.75, list = FALSE)
+train.df = df[Train_index,]
+test.df = df[-Train_index,]
+
+# Normalization
+subset_data<-train.df[,-c(1)]
+Normal_Data <- preProcess(subset_data,method = "range")
+df_Norm <- predict(Normal_Data,subset_data)
+summary(df_Norm)   
+colMeans(is.na(df_Norm))
+```
+# Loading package
+```{r}
+library("factoextra")
+library("cluster")
+library("ggplot2")
+library("gridExtra")
+```
+K means clustering
+# Estimating the number of clusters
+```{r}
+fviz_nbclust(df_Norm, kmeans, method = "wss")+ labs(subtitle = "Elbow Method")
+fviz_nbclust(df_Norm, kmeans, method = "silhouette") + labs(subtitle = "Silhouette Method")
+```
+# In Wss method choice of choosing K value is ambiguous. Therefore, I choose silhouette method with k=2. 
+
+# Computing K-means clustering for centers k= 2,Silhouette:
+```{r}
+# k= 2
+set.seed(345)
+k2 <- kmeans(df_Norm, centers = 2, nstart = 25)
+# The cluster centres
+k2$centers
+```
+Interpretation:
+K-means clustering with 2 clusters of sizes 3300, 5831
+compactness: 82.1 %
+
+# Cluster Plot
+```{r}
+fviz_cluster(k2, data = df_Norm)+ggtitle("k=2")
+```
+# Sillohuette Average
+```{r}
+sil <- silhouette(k2$cluster, dist(df_Norm))
+fviz_silhouette(sil)
+```
+
+Si: 0.78, since si>0, the observation is well clustered.
+The range of the Silhouette value is between +1 and -1. A high value is desirable and indicates that the point is placed in the correct cluster.
+
+#  Final cluster Analysis
+```{r}
+clr_sil <- k2$cluster
+# Binding cluster with train data
+f_clr <- cbind(train.df,clr_sil)
+f_clr$cluster <- as.factor(f_clr$clr_sil)
+head(f_clr)
+```
+# Aggregating
+```{r}
+d<-f_clr%>%group_by(clr_sil)%>%
+  summarize(
+    fuel_received_units=median(fuel_received_units),
+    fuel_mmbtu_per_unit=median(fuel_mmbtu_per_unit),
+            fuel_cost_per_mmbtu=median(fuel_cost_per_mmbtu),
+            sulfur_content=median(sulfur_content_pct),
+    ash_content=median(ash_content_pct))
+d
+```
+# Plotting number of cluster
+```{r}
+ggplot(f_clr) +aes(x = clr_sil, fill = fuel_type_code_pudl) +
+geom_bar() + scale_fill_brewer(palette = "Accent", direction = 1) +
+labs(x = "Number of Clusters", title = "CLUSTERS") + theme_minimal() +theme(plot.title = element_text(size = 12L,face = "bold",hjust = 0.5),axis.title.x = element_text(size = 12L,face = "bold"))
+```
+
+# Multiple-linear regression to determine the best set of variables to predict fuel_cost_per_mmbtu
+```{r}
+df_reg <- test.df
+dim(df_reg)  # dimension/shape of test dataset
+df<-df_reg[,-c(1)]
+df<-scale(df)
+head(df)
+```
+```{r}
+Y <-test.df$fuel_cost_per_mmbtu
+
+X1<-test.df$fuel_received_units 
+X2<- test.df$fuel_mmbtu_per_unit 
+X3<- test.df$sulfur_content_pct
+X4<- test.df$ash_content_pct
+```
+
+```{r}
+model <- lm(Y ~ X1+X2+X3+X4)
+summary(model)
+```
+
+```{r}
+anova(model)
+```
+Interpretation using test set:
+fuel_mmbtu_per_unit- Heat content of the fuel in millions of Btus per physical unit.
+fuel_mmbtu_per_unit is the best set of variables to predict fuel_cost_per_mmbtu, According to the mean square(relative values of sum squares). Fuel's heat content(fuel_mmbtu_per_unit) of the house explains 7058.2 units of variability of the heat produced cost(fuel_cost_per_mmbtu).
+
+# Multiple-linear regression for cluster
+```{r}
+df_re <- f_clr
+subset<-df_re[,-c(1)]
+Normal_Data <- preProcess(subset,method = "range")
+df_Norm7 <- predict(Normal_Data,subset)
+summary(df_Norm7)   
+```
+```{r}
+Z <-df_Norm7$fuel_cost_per_mmbtu
+
+X5<-df_Norm7$fuel_received_units 
+X6<- df_Norm7$fuel_mmbtu_per_unit 
+X7<- df_Norm7$sulfur_content_pct
+X8<- df_Norm7$ash_content_pct
+```
+
+```{r}
+model2 <- lm(Z ~ X5+X6+X7+X8)
+summary(model2)
+```
+```{r}
+anova(model)
+```
+Interpretation using Cluster information:
+ 
+fuel_mmbtu_per_unit is the best set of variables to predict fuel_cost_per_mmbtu, According to the mean square(relative values of sum squares). Fuel's heat content(fuel_mmbtu_per_unit) of the house explains 7058.2 units of variability of the heat produced cost(fuel_cost_per_mmbtu).
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
